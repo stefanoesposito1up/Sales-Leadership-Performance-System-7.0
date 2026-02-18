@@ -1,16 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getSupabase } from '../services/cloud';
-import { Loader2, LogIn, Lock, Mail, ShieldCheck, UserPlus, Ticket, AlertCircle } from 'lucide-react';
+import { Loader2, LogIn, Lock, Mail, ShieldCheck, UserPlus, Ticket, AlertCircle, CheckSquare, Square } from 'lucide-react';
 
 export const Login: React.FC = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [fullName, setFullName] = useState('');
-    const [inviteCode, setInviteCode] = useState(''); // NEW: Invite Code State
+    const [inviteCode, setInviteCode] = useState('');
+    
+    // Remember Me State (defaults to true)
+    const [rememberMe, setRememberMe] = useState(true);
+    
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [mode, setMode] = useState<'login' | 'register' | 'reset'>('login');
     const [msg, setMsg] = useState('');
+
+    // Load preference on mount
+    useEffect(() => {
+        const pref = localStorage.getItem('remember_me');
+        if (pref !== null) {
+            setRememberMe(pref !== 'false');
+        }
+    }, []);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -25,17 +37,25 @@ export const Login: React.FC = () => {
         }
 
         try {
+            // 1. SAVE PREFERENCE
+            // We save this so that next time the app loads (refresh/reopen), 
+            // initSupabase picks the correct storage strategy.
+            localStorage.setItem('remember_me', rememberMe ? 'true' : 'false');
+
+            // 2. ATTEMPT LOGIN
             const { error } = await supabase.auth.signInWithPassword({ email, password });
+            
             if (error) {
                 console.error("Login Error:", error);
-                // Translate common errors or show original
                 if (error.message.includes("Invalid login credentials")) {
                     setError("Email o password non corretti.");
                 } else if (error.message.includes("Email not confirmed")) {
                     setError("Email non confermata. Controlla la tua casella di posta.");
                 } else {
-                    setError(error.message); // Show exact technical error for debugging
+                    setError(error.message);
                 }
+            } else {
+                // If success, user is redirected by AuthProvider detecting session change
             }
         } catch (err: any) {
             setError("Errore imprevisto: " + err.message);
@@ -74,9 +94,8 @@ export const Login: React.FC = () => {
         });
 
         if (error) {
-            setError(error.message); // Trigger exception message will appear here
+            setError(error.message);
         } else if (data.user) {
-            // Check if user session is established (Auto-confirm disabled usually requires email check)
             if (data.session) {
                  setMsg('Registrazione completata! Benvenuto.');
                  window.location.reload();
@@ -144,6 +163,34 @@ export const Login: React.FC = () => {
                                 <input type="password" required value={password} onChange={e => setPassword(e.target.value)} className="glass-input w-full pl-10 p-3 rounded-xl text-sm" placeholder="••••••••" />
                             </div>
                         </div>
+
+                        {/* REMEMBER ME CHECKBOX */}
+                        <div className="py-2">
+                            <label className="flex items-start gap-3 cursor-pointer group">
+                                <div className="relative mt-0.5">
+                                    <input 
+                                        type="checkbox" 
+                                        className="peer sr-only" 
+                                        checked={rememberMe}
+                                        onChange={e => setRememberMe(e.target.checked)}
+                                    />
+                                    <div className={`w-5 h-5 border-2 rounded transition-colors flex items-center justify-center ${rememberMe ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-600 text-transparent group-hover:border-slate-500'}`}>
+                                        <CheckSquare size={14} className={rememberMe ? 'block' : 'hidden'} />
+                                    </div>
+                                </div>
+                                <div>
+                                    <span className={`text-sm font-medium transition-colors ${rememberMe ? 'text-white' : 'text-slate-400'}`}>
+                                        Ricordami su questo dispositivo
+                                    </span>
+                                    {!rememberMe && (
+                                        <p className="text-[10px] text-slate-500 leading-tight mt-0.5 animate-in fade-in">
+                                            Se disattivato, al riavvio del browser dovrai accedere di nuovo.
+                                        </p>
+                                    )}
+                                </div>
+                            </label>
+                        </div>
+
                         <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 mt-2 transition-all active:scale-95 shadow-lg shadow-blue-900/20">
                             {loading ? <Loader2 className="animate-spin" size={18}/> : <LogIn size={18}/>} Accedi
                         </button>

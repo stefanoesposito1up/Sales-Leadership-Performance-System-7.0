@@ -1,18 +1,19 @@
-
 import React, { useState, useEffect } from 'react';
 import { getSupabase } from '../services/cloud';
-import { Ticket, Users, Copy, Check, Trash2, Plus, Loader2 } from 'lucide-react';
+import { registerUser } from '../services/admin';
+import { Users, Trash2, Plus, Loader2, UserPlus, Shield, Key } from 'lucide-react';
 
 export const AdminPanel: React.FC = () => {
-    const [invites, setInvites] = useState<any[]>([]);
     const [profiles, setProfiles] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
+    const [actionLoading, setActionLoading] = useState(false);
     
-    // New Invite Form
-    const [newInvite, setNewInvite] = useState({
-        role: 'collaboratore',
-        max_uses: 1,
-        team_id: ''
+    // New User Form
+    const [newUser, setNewUser] = useState({
+        email: '',
+        password: '',
+        fullName: '',
+        role: 'member'
     });
 
     useEffect(() => {
@@ -23,107 +24,119 @@ export const AdminPanel: React.FC = () => {
         setLoading(true);
         const supabase = getSupabase();
         if (supabase) {
-            const { data: inv } = await supabase.from('invites').select('*').order('created_at', { ascending: false });
             const { data: prof } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
-            if (inv) setInvites(inv);
             if (prof) setProfiles(prof);
         }
         setLoading(false);
     };
 
-    const generateInvite = async () => {
-        const code = `INV-${Math.random().toString(36).substring(2, 6).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-        const supabase = getSupabase();
+    const handleCreateUser = async (e: React.FormEvent) => {
+        e.preventDefault();
         
-        if (!supabase) return;
-
-        const { error } = await supabase.from('invites').insert({
-            code,
-            role_assigned: newInvite.role,
-            max_uses: newInvite.max_uses,
-            team_id_assigned: newInvite.team_id || null,
-            // Assuming current admin is the creator
-        });
-
-        if (error) alert('Errore creazione: ' + error.message);
-        else {
-            alert(`Codice creato: ${code}`);
-            loadData();
+        if (newUser.password.length < 6) {
+            alert("La password deve essere di almeno 6 caratteri");
+            return;
         }
-    };
 
-    const deleteInvite = async (code: string) => {
-        if(!confirm('Eliminare invito?')) return;
-        const supabase = getSupabase();
-        if(supabase) {
-            await supabase.from('invites').delete().eq('code', code);
+        setActionLoading(true);
+        try {
+            await registerUser(newUser.email, newUser.password, newUser.fullName, newUser.role);
+            alert(`Utente ${newUser.fullName} creato con successo!`);
+            
+            // Reset form
+            setNewUser({ email: '', password: '', fullName: '', role: 'member' });
+            // Refresh list
             loadData();
+        } catch (err: any) {
+            alert("Errore creazione: " + err.message);
         }
+        setActionLoading(false);
     };
 
     return (
         <div className="max-w-6xl mx-auto pb-24 space-y-8 animate-in fade-in">
             <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                <Users className="text-red-500"/> Pannello Amministrazione
+                <Shield className="text-red-500"/> Pannello Amministrazione
             </h2>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* INVITE GENERATOR */}
-                <div className="glass-panel p-6 rounded-2xl">
-                    <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Ticket size={18} className="text-blue-400"/> Gestione Inviti</h3>
+                {/* USER CREATION FORM */}
+                <div className="glass-panel p-6 rounded-2xl border-t-4 border-blue-600">
+                    <h3 className="font-bold text-white mb-4 flex items-center gap-2">
+                        <UserPlus size={18} className="text-blue-400"/> Registra Nuovo Utente
+                    </h3>
                     
-                    <div className="bg-slate-900/50 p-4 rounded-xl mb-6 border border-white/5">
-                        <div className="grid grid-cols-2 gap-4 mb-4">
+                    <form onSubmit={handleCreateUser} className="space-y-4">
+                        <div>
+                            <label className="text-[10px] text-slate-500 uppercase font-bold">Nome Completo</label>
+                            <input 
+                                required
+                                type="text" 
+                                className="glass-input w-full p-2 rounded-lg text-sm"
+                                placeholder="Mario Rossi"
+                                value={newUser.fullName}
+                                onChange={e => setNewUser({...newUser, fullName: e.target.value})}
+                            />
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-[10px] text-slate-500 uppercase font-bold">Email</label>
+                                <input 
+                                    required
+                                    type="email" 
+                                    className="glass-input w-full p-2 rounded-lg text-sm"
+                                    placeholder="email@azienda.com"
+                                    value={newUser.email}
+                                    onChange={e => setNewUser({...newUser, email: e.target.value})}
+                                />
+                            </div>
                             <div>
                                 <label className="text-[10px] text-slate-500 uppercase font-bold">Ruolo</label>
                                 <select 
                                     className="glass-input w-full p-2 rounded-lg text-sm"
-                                    value={newInvite.role}
-                                    onChange={e => setNewInvite({...newInvite, role: e.target.value})}
+                                    value={newUser.role}
+                                    onChange={e => setNewUser({...newUser, role: e.target.value})}
                                 >
-                                    <option value="collaboratore">Collaboratore</option>
-                                    <option value="leader">Leader</option>
+                                    <option value="member">Collaboratore</option>
+                                    <option value="leader">Leader / Coach</option>
                                     <option value="admin">Admin</option>
                                 </select>
                             </div>
-                            <div>
-                                <label className="text-[10px] text-slate-500 uppercase font-bold">Max Usi</label>
-                                <input 
-                                    type="number" 
-                                    className="glass-input w-full p-2 rounded-lg text-sm"
-                                    value={newInvite.max_uses}
-                                    onChange={e => setNewInvite({...newInvite, max_uses: parseInt(e.target.value)})}
-                                />
-                            </div>
                         </div>
-                        <button onClick={generateInvite} className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center justify-center gap-2">
-                            <Plus size={18}/> Genera Codice
-                        </button>
-                    </div>
 
-                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                        {invites.map(inv => (
-                            <div key={inv.code} className="p-3 rounded-xl bg-slate-800/50 border border-white/5 flex justify-between items-center">
-                                <div>
-                                    <div className="font-mono text-emerald-400 font-bold text-sm tracking-wider">{inv.code}</div>
-                                    <div className="text-[10px] text-slate-400 flex gap-2">
-                                        <span className="uppercase">{inv.role_assigned}</span>
-                                        <span>•</span>
-                                        <span>Usato: {inv.uses_count}/{inv.max_uses}</span>
-                                    </div>
-                                </div>
-                                <button onClick={() => deleteInvite(inv.code)} className="p-2 text-slate-500 hover:text-red-400"><Trash2 size={16}/></button>
-                            </div>
-                        ))}
-                    </div>
+                        <div>
+                            <label className="text-[10px] text-slate-500 uppercase font-bold flex items-center gap-1">
+                                <Key size={10}/> Password Provvisoria
+                            </label>
+                            <input 
+                                required
+                                type="text" 
+                                className="glass-input w-full p-2 rounded-lg text-sm font-mono text-yellow-400"
+                                placeholder="Minimo 6 caratteri"
+                                value={newUser.password}
+                                onChange={e => setNewUser({...newUser, password: e.target.value})}
+                            />
+                            <p className="text-[9px] text-slate-500 mt-1">L'utente potrà cambiarla successivamente (non ancora implementato) o usare questa.</p>
+                        </div>
+
+                        <button 
+                            type="submit" 
+                            disabled={actionLoading}
+                            className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-blue-900/20"
+                        >
+                            {actionLoading ? <Loader2 className="animate-spin" size={18}/> : <Plus size={18}/>}
+                            Crea Utente
+                        </button>
+                    </form>
                 </div>
 
                 {/* USER LIST */}
                 <div className="glass-panel p-6 rounded-2xl">
                     <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Users size={18} className="text-emerald-400"/> Lista Utenti ({profiles.length})</h3>
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
                         <table className="w-full text-sm text-left">
-                            <thead className="text-[10px] text-slate-500 uppercase bg-slate-900/50">
+                            <thead className="text-[10px] text-slate-500 uppercase bg-slate-900/50 sticky top-0 backdrop-blur-md">
                                 <tr>
                                     <th className="p-2 rounded-l-lg">Nome</th>
                                     <th className="p-2">Ruolo</th>
@@ -132,7 +145,7 @@ export const AdminPanel: React.FC = () => {
                             </thead>
                             <tbody className="divide-y divide-white/5">
                                 {profiles.map(p => (
-                                    <tr key={p.user_id}>
+                                    <tr key={p.user_id} className="hover:bg-white/5">
                                         <td className="p-2 font-medium text-white">
                                             {p.full_name}
                                             <div className="text-[10px] text-slate-500">{p.email}</div>

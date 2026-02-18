@@ -16,9 +16,10 @@ import { DailyLog, INITIAL_LOG } from './types';
 import { LayoutDashboard, PlusCircle, History, Target, Users, LogOut, ArrowLeft, Loader2, BarChart2, BrainCircuit, Shield } from 'lucide-react';
 
 // INITIALIZE SUPABASE GLOBALLY
-// Using Vite Environment Variables (Must be set in Vercel Dashboard)
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Fallback for environments where import.meta.env is not populated correctly
+const env = (import.meta.env || {}) as any;
+const SUPABASE_URL = env.VITE_SUPABASE_URL || 'https://ewqhndyjsrplgsjrwyvl.supabase.co';
+const SUPABASE_KEY = env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_JqoQpKprStqz27WeCzfJkA_mTdLCY_Q';
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   console.warn('⚠️ MISSING SUPABASE ENVIRONMENT VARIABLES ⚠️');

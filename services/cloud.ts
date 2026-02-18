@@ -1,4 +1,3 @@
-
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { DailyLog, MonthlyPlan, UserProfile } from '../types';
 
@@ -8,6 +7,14 @@ export interface CloudConfig {
 }
 
 let supabase: SupabaseClient | null = null;
+
+// Helper to determine storage strategy
+const getStorageStrategy = () => {
+    // We store the PREFERENCE in localStorage always (it's not sensitive).
+    // If 'remember_me' is explicitly 'false', we use sessionStorage for the actual auth token.
+    const rememberMe = localStorage.getItem('remember_me') !== 'false';
+    return rememberMe ? window.localStorage : window.sessionStorage;
+};
 
 // Initialize with the hardcoded config or user provided
 export const initSupabase = (config: CloudConfig) => {
@@ -19,10 +26,10 @@ export const initSupabase = (config: CloudConfig) => {
   try {
     supabase = createClient(config.url, config.key, {
        auth: {
-         persistSession: true, // IMPORTANT: Enables LocalStorage persistence
+         persistSession: true, // Enable persistence logic
          autoRefreshToken: true,
          detectSessionInUrl: true,
-         storage: window.localStorage // Explicitly use window.localStorage for persistence
+         storage: getStorageStrategy() // Dynamic storage based on preference
        }
     });
     return supabase;

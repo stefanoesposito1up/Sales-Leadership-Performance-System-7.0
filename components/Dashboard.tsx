@@ -425,7 +425,7 @@ export const Dashboard: React.FC<Props> = ({ logs, onNavigateToEntry, onNavigate
                   </div>
                   <ProductLegend />
                </div>
-               <div className="h-full min-h-[300px]">
+               <div className="h-[400px]">
                  <ResponsiveContainer width="100%" height="100%">
                    <BarChart 
                         data={monthlyChartData} 
